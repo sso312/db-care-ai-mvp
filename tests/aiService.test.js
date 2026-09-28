@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {classify,newSession,respond,toTicket,urgency} from '../src/services/aiService.js';
+import {oracleErrors} from '../src/data/oracleErrors.js';
+test('ORA-12514 상담에서 환경 수집 후 정확한 티켓 생성',async()=>{let s=newSession();for(const text of ['DB 접속이 안되고 ORA-12514 오류가 발생합니다.','PROD 입니다.','Listener는 정상입니다.','OPEN입니다.'])s=await respond(s,text);assert.equal(s.done,true);const t=toTicket(s,'Demo Customer A','Oracle Database 19c');assert.deepEqual(t.answers,{'SERVICE_NAME':'PROD','Listener':'정상','DB Instance':'OPEN'});assert.equal(t.category,'DB 접속 장애');assert.equal(t.status,'엔지니어 확인 필요');assert.equal(t.checkItems.length,4);assert.equal(t.messages.length,9)});
+for(const [code,rule]of Object.entries(oracleErrors))test(`${code}의 모든 질문과 종료`,async()=>{let s=await respond(newSession(),`${code} 오류`);assert.equal(s.rule.category,rule.category);for(let i=0;i<rule.questions.length;i++){assert.ok(s.messages.at(-1).text.includes(rule.questions[i].text));s=await respond(s,'확인 불가');}assert.equal(s.done,true);assert.equal(Object.keys(s.answers).length,rule.questions.length);assert.equal(await respond(s,'중복'),s)});
+test('긴급도는 후속 답변에서도 반영',async()=>{let s=await respond(newSession(),'ORA-12514');s=await respond(s,'전체 접속 불가');assert.equal(s.priority,'높음');for(const t of ['서비스 중단','DB DOWN','모든 사용자가 접속 불가'])assert.equal(urgency(t),'높음')});
+test('위험 명령 요청은 실행 없이 즉시 이관',async()=>{for(const text of ['ALTER SYSTEM SET','ALTER DATABASE OPEN','DROP TABLE','SHUTDOWN','STARTUP','KILL SESSION','ALTER USER a','Datafile 변경','Tablespace Resize']){const s=await respond(newSession(),text);assert.equal(s.done,true,text);assert.match(s.messages.at(-1).text,/실행하지 않습니다/);assert.equal(toTicket(s,'Demo','19c').status,'엔지니어 확인 필요')}});
+test('일반 문의 유형 분류와 알 수 없는 오류',()=>{for(const [text,category]of [['리스너 장애','Listener 장애'],['계정 잠금','계정 Lock'],['테이블스페이스 부족','Tablespace 부족'],['FRA 부족','FRA 부족'],['성능 저하','성능 저하'],['RMAN 백업 실패','백업/복구'],['DB 접속 오류','DB 접속 장애'],['기타 문의','기타 DB 문의']])assert.equal(classify(text).category,category);assert.equal(classify('ORA-99999').code,'ORA-99999')});
+
