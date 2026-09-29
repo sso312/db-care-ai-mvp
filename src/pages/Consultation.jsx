@@ -4,11 +4,12 @@ import {newSession,respond,toTicket} from '../services/aiService.js';
 import {redactSensitive} from '../services/security.js';
 import {scenarios} from '../data/oracleErrors.js';
 import {Badge,PageTitle,Safety} from '../components/UI.jsx';
-export default function Consultation({onTicket,onDashboard}){
+export default function Consultation({onTicket,onDashboard,initialInquiry,onInitialConsumed}){
  const [session,setSession]=useState(newSession),[input,setInput]=useState(''),[customer,setCustomer]=useState('Demo Customer A'),[version,setVersion]=useState('Oracle Database 19c'),[busy,setBusy]=useState(false),[voice,setVoice]=useState(false),[listening,setListening]=useState(false),[notice,setNotice]=useState(''),[phoneOpen,setPhoneOpen]=useState(false),[callStatus,setCallStatus]=useState('대기 중'),[callSeconds,setCallSeconds]=useState(0),[muted,setMuted]=useState(false),[phoneStep,setPhoneStep]=useState(0),[callListening,setCallListening]=useState(false),[callTranscript,setCallTranscript]=useState(''),[callMessage,setCallMessage]=useState('마이크 버튼을 눌러 고객의 음성을 받아보세요.');
  const recognition=useRef(null),phoneRecognition=useRef(null),end=useRef(null),lock=useRef(false),callTimer=useRef(null);
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  useEffect(()=>{end.current?.scrollIntoView({block:'nearest',behavior:'smooth'})},[session,busy]);
+ useEffect(()=>{if(initialInquiry&&!session.rule&&!session.done){send(initialInquiry);onInitialConsumed?.()}},[initialInquiry]);
  useEffect(()=>()=>{recognition.current?.abort();phoneRecognition.current?.abort();window.speechSynthesis?.cancel();clearTimeout(callTimer.current)},[]);
  useEffect(()=>{if(!phoneOpen||callStatus!=='연결됨')return;const timer=setInterval(()=>setCallSeconds(v=>v+1),1000);return()=>clearInterval(timer)},[phoneOpen,callStatus]);
  function speak(text){if(!window.speechSynthesis)return;window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(text.replace(/ORA-(\d{5})/g,'오라 $1'));utterance.lang='ko-KR';utterance.rate=.98;window.speechSynthesis.speak(utterance)}
