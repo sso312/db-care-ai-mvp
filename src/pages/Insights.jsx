@@ -1,0 +1,15 @@
+import React from 'react';
+import {BarChart3,CheckCircle2,Clock3,ShieldCheck,Target,UsersRound} from 'lucide-react';
+import {PageTitle,Badge} from '../components/UI.jsx';
+import {slaState} from '../services/operations.js';
+export default function Insights({tickets}){
+ const operational=tickets.filter(t=>!t.sample),total=operational.length,complete=operational.filter(t=>t.status==='처리 완료').length,withSla=operational.filter(t=>t.slaDueAt),within=withSla.filter(t=>slaState(t)!=='초과').length;
+ const categories=Object.entries(operational.reduce((a,t)=>({...a,[t.category]:(a[t.category]||0)+1}),{})).sort((a,b)=>b[1]-a[1]).slice(0,3);
+ const channels=operational.reduce((a,t)=>({...a,[t.channel||'WEB']:(a[t.channel||'WEB']||0)+1}),{});
+ const pct=(v,d)=>d?Math.round(v/d*100):0;
+ return <><PageTitle eyebrow="AX + DB OPERATIONS" title="운영 인사이트" description="고객 경험과 DB 운영 품질을 같은 티켓 데이터로 확인합니다."><Badge type="green"><BarChart3 size={13}/>파일럿 지표</Badge></PageTitle>
+ <section className="insight-grid">{[[total,'자동 구조화 접수',UsersRound,'고객이 증상 선택 후 AI가 필수 정보를 수집'],[`${pct(complete,total)}%`,'처리 완료율',CheckCircle2,'완료 상태로 전환된 운영 티켓 비율'],[withSla.length?`${pct(within,withSla)}%`:'—','SLA 준수율',Clock3,'SLA가 설정된 티켓 기준'],[categories[0]?.[0]||'—','상위 문의 유형',Target,categories[0]?`${categories[0][1]}건으로 가장 많이 접수됨`:'운영 티켓이 생성되면 표시됩니다.']].map(([value,label,Icon,detail])=><article className="panel insight-metric" key={label}><Icon size={19}/><strong>{value}</strong><span>{label}</span><small>{detail}</small></article>)}</section>
+ <section className="insight-main"><article className="panel insight-panel"><span className="section-kicker">DEMAND PATTERN</span><h2>고객 문의가 운영 개선 과제가 됩니다.</h2>{categories.length?<div className="insight-bars">{categories.map(([name,count])=><div key={name}><span>{name}</span><i><b style={{width:`${Math.max(18,count/categories[0][1]*100)}%`}}/></i><strong>{count}</strong></div>)}</div>:<p>실제 상담이 누적되면 반복 장애 유형과 자동화 우선순위를 제시합니다.</p>}<div className="channel-summary">{Object.entries(channels).map(([channel,count])=><Badge key={channel} type="neutral">{channel} {count}건</Badge>)}</div></article><article className="panel insight-panel"><span className="section-kicker">TRUST GATE</span><h2>AI는 답을 단정하지 않고, 근거와 다음 조치를 남깁니다.</h2><ul className="trust-list"><li><ShieldCheck size={17}/><span><strong>입력 보호</strong><small>민감정보 형식을 마스킹한 뒤 티켓으로 전달</small></span></li><li><ShieldCheck size={17}/><span><strong>DB 변경 통제</strong><small>ALTER, DROP, SHUTDOWN 등은 자동 실행 없이 승인 이관</small></span></li><li><ShieldCheck size={17}/><span><strong>품질 검증</strong><small>오류 코드 기반 신뢰도와 확인 항목을 티켓에 함께 기록</small></span></li></ul></article></section>
+ <section className="panel pilot-value"><div><span className="section-kicker">WHY SCALE THIS</span><h2>고객은 덜 반복하고, 엔지니어는 더 빨리 판단합니다.</h2><p>정형 질문, 음성·웹 채널 통합, SLA, 담당자 배정, 안전 통제를 한 흐름으로 운영합니다.</p></div><div className="value-steps"><span>01 고객 증상 선택</span><span>02 AI 정보 구조화</span><span>03 DB 엔지니어 판단</span><span>04 재발 방지 지식화</span></div></section></>;
+}
+
